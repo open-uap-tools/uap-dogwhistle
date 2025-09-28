@@ -1,4 +1,4 @@
-# 🛸 UAP Dog-Whistle Signal Generator
+# 🛸 UAP Signal Generator
 
 ## Overview
 
