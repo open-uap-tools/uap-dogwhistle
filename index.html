@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>UAP Signal Generator</title>
+</head>
+<body>
+  <button id="start">Start Signal</button>
+  <button id="stop">Stop Signal</button>
+
+<script>
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let oscillators = [];
+let noiseNode;
+
+function startSignal() {
+  stopSignal();
+
+  // 7.83 Hz carrier via 100 Hz base tone (AM modulation)
+  const baseOsc = audioCtx.createOscillator();
+  baseOsc.frequency.value = 100;
+  const gainMod = audioCtx.createGain();
+  gainMod.gain.value = 0.5;
+  const lfo = audioCtx.createOscillator();
+  lfo.frequency.value = 7.83;
+  lfo.connect(gainMod.gain);
+  baseOsc.connect(gainMod);
+  gainMod.connect(audioCtx.destination);
+  baseOsc.start();
+  lfo.start();
+  oscillators.push(baseOsc, lfo);
+
+  // 528 Hz harmonic
+  const osc528 = audioCtx.createOscillator();
+  osc528.frequency.value = 528;
+  osc528.connect(audioCtx.destination);
+  osc528.start();
+  oscillators.push(osc528);
+
+  // 17 kHz ultrasonic ping
+  const osc17k = audioCtx.createOscillator();
+  osc17k.frequency.value = 17000;
+  osc17k.connect(audioCtx.destination);
+  osc17k.start();
+  oscillators.push(osc17k);
+
+  // Organic 2.5 kHz chirp every 10 sec
+  const chirpGain = audioCtx.createGain();
+  chirpGain.gain.value = 0;
+  const oscChirp = audioCtx.createOscillator();
+  oscChirp.frequency.value = 2500;
+  oscChirp.connect(chirpGain).connect(audioCtx.destination);
+  oscChirp.start();
+  oscillators.push(oscChirp);
+  setInterval(() => {
+    chirpGain.gain.setValueAtTime(1, audioCtx.currentTime);
+    chirpGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+  }, 10000);
+
+  // 432 Hz ambient pad
+  const osc432 = audioCtx.createOscillator();
+  osc432.frequency.value = 432;
+  const padGain = audioCtx.createGain();
+  padGain.gain.value = 0.2;
+  osc432.connect(padGain).connect(audioCtx.destination);
+  osc432.start();
+  oscillators.push(osc432);
+
+  // Breath layer (white noise shaped)
+  const bufferSize = 2 * audioCtx.sampleRate;
+  const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const output = noiseBuffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    output[i] = (Math.random() * 2 - 1) * 0.05; // low amplitude
+  }
+  noiseNode = audioCtx.createBufferSource();
+  noiseNode.buffer = noiseBuffer;
+  noiseNode.loop = true;
+  const noiseGain = audioCtx.createGain();
+  noiseGain.gain.value = 0.1;
+  noiseNode.connect(noiseGain).connect(audioCtx.destination);
+  noiseNode.start();
+}
+
+function stopSignal() {
+  oscillators.forEach(osc => osc.stop());
+  oscillators = [];
+  if (noiseNode) noiseNode.stop();
+}
+
+document.getElementById('start').addEventListener('click', startSignal);
+document.getElementById('stop').addEventListener('click', stopSignal);
+</script>
+</body>
+</html>
